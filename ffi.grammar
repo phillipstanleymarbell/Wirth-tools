@@ -1,0 +1,11 @@
+language	::= {ffstmt} .
+
+ffstmt		::= firstsetstmt | followsetstmt .
+firstsetstmt	::= ("token" | "production") identifier ':' "firstset" '=' '{' firstset '}' .
+followsetstmt	::= ("token" | "production") identifier ':' "followset" '=' '{' followset '}' .
+
+firstsetop	::= "firstset" '(' identifier ')' .
+firstset	::= (identifier | firstsetop) {',' (identifier | firstsetop)} .
+
+followsetop	::= "followset" '(' identifier ')' .
+followset	::= (identifier | firstsetop | followsetop) {',' (identifier | firstsetop | followsetop)} .

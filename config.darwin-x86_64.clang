@@ -1,0 +1,4 @@
+HOSTNAME		= localhost#`hostname`
+PLATFORM_DFLAGS		= -DFFI2CODE_DOTCMD_DEFAULT="\"/usr/local/bin/dot_static\"" -DFFI2CODE_LOGOPATH="\"http://$(HOSTNAME)/tmp/salsvm-logo.png\""
+PLATFORM_OPTFLAGS	= -O0#-O4
+PLATFORM_DBGFLAGS	= -g

@@ -1,0 +1,30 @@
+production P_BOOLCONST:			firstset = {T_TRUE, T_FALSE, T_MAYBE}
+
+production P_ARITHOVER:			firstset = {T_SUM, T_PRODUCT}
+
+production P_ARITHEXPR:			firstset =	{
+								T_IMEM, T_RMEM, T_IREG, T_UIMM, T_SUB, T_PLUS, T_RREG, T_DIMM, 
+								T_LPAREN, T_STRING, T_OR, T_SUM, T_PRODUCT
+							}
+
+production P_REGFULLTERM:		firstset = {T_REGFULL}
+
+
+
+
+
+
+
+
+production	P_ARITHEXPR:			followset = {T_TO}
+production	P_ARITHEXPR:			followset = {firstset(P_ARITH2BOOLOP)}
+production	P_ARITHEXPR:			followset = {firstset(P_LPRECARITH2ARITHOP)}
+token		T_POWERSET:			followset = {followset(P_UNARYSETOP)}
+token		T_TRUE:				followset = {followset(T_FALSE), followset(T_MAYBE), followset(P_BOOLCONST)}
+token		T_WREG:				followset = {followset(P_REGFULLTERM)}
+token		T_WREG:				followset = {followset(P_STRPARAMORCONST)}
+
+
+
+
+

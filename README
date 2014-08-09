@@ -1,0 +1,99 @@
+Wirth is a set of tools to automate construction of a recursive-descent
+parser in the Wirth style.
+
+*       ebnf2ffi takes an EBNF grammar and outputs an intermediate
+	form of first and follow set definitions (.w file).
+
+*       ffi2code takes the intermediate first and follow set
+	definitions (.w file) and outputs header files and array
+	definitions (C, Mahler) for the FIRST() and FOLLOW() sets.
+
+*       ebnf2parser takes an EBNF grammar and outputs code (C,
+	Mahler) for a skeletal parser. The entire flow is analogous
+	to YACC and ANTLR, but with a focus on:
+	(1)	The role of the FIRST() and FOLLOW() set generation,
+		which is particularly useful for features such as
+		code completion and useful error reporting
+	(2)	Building a recursive descent parser rather than a
+		bottom-up table-driven parser.
+	(3)	The tools ebnf2ffi and ffi2code are largely independent
+		of the language in which the parser will eventually be
+		written, and can serve as intermediate stages for tools
+		such as converting EBNF to graphviz visualizations.
+
+
+
+TODO/ideas:
+	Generates code and header files for:
+
+	1.	FIRST() and FOLLOW() sets for the grammar
+	2.	Given an (optional) directory containing several files,
+		it creates a table with the empirical correlation
+		coefficients for all the language's tokens, and for
+		non-reserved tokens (identifiers)
+
+	Also generate:
+
+
+
+
+M_RESERVED_DESCRS	:= array [] of
+{
+	T_ADDAS			=> "+=",
+	T_ADT			=> "adt",
+	T_ALPHA			=> "alpha",
+	T_AMP			=> "&",
+	T_AND			=> "&&",
+	T_ANDAS			=> "&=",
+	T_ARRAY			=> "array",
+	T_AS			=> "=",
+
+...
+
+
+
+
+
+#
+#	Strings representing the various productions, for debugging and error reporting
+#
+M_PRODDESCR		:= array [] of
+{
+	P_CHARACTER		=> "character",
+	P_RSVOPTOKEN		=> "reserved operator",
+	P_ZERONINE		=> "character in [\"0\" .. \"9\"]",
+	P_ONENINE		=> "character in [\"1\" .. \"9\"]",
+	P_RADIX			=> "radix prefix",
+...
+
+
+
+
+
+M_PRODSTRINGS		:= array [] of
+{
+	P_CHARACTER		=> "P_CHARACTER",
+	P_RSVOPTOKEN		=> "P_RSVOPTOKEN",
+	P_ZERONINE		=> "P_ZERONINE",
+	P_ONENINE		=> "P_ONENINE",
+	P_RADIX			=> "P_RADIX",
+...
+
+
+
+
+
+M_TERMSTRINGS		:= array [] of
+{
+	T_ADDAS			=> "T_ADDAS",
+	T_ADT			=> "T_ADT",
+	T_ALPHA			=> "T_ALPHA",
+	T_AMP			=> "T_AMP",
+	T_AND			=> "T_AND",
+	T_ANDAS			=> "T_ANDAS",
+	T_ARRAY			=> "T_ARRAY",
+	T_AS			=> "T_AS",
+	T_ASTERISK		=> "T_ASTERISK",
+	T_BANG			=> "T_BANG",
+	T_BOOL			=> "T_BOOL",
+	T_BOOLCONST		=> "T_BOOLCONST",
