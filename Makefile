@@ -1,11 +1,11 @@
-LIBFLEXPATH     = ../libflex
-CONFIGPATH	= ../libflex
+LIBFLEXPATH     = /Users/pip/Projects/libflex
+CONFIGPATH	= /Users/pip/Projects/libflex
 include		$(CONFIGPATH)/config.$(OSTYPE)-$(MACHTYPE).clang
 include		config.$(OSTYPE)-$(MACHTYPE).clang
 
 
-CCFLAGS		= $(PLATFORM_CFLAGS) $(PLATFORM_DFLAGS) $(PLATFORM_OPTFLAGS) $(PLATFORM_DBGFLAGS)
-LDFLAGS 	= -lm $(PLATFORM_LFLAGS)
+CCFLAGS		= $(PLATFORM_DBGFLAGS) $(PLATFORM_CFLAGS) $(PLATFORM_DFLAGS) $(PLATFORM_OPTFLAGS)
+LDFLAGS 	= $(PLATFORM_DBGFLAGS) -lm $(PLATFORM_LFLAGS)
 
 FFI2CODE_L10N	= EN
 CCFLAGS         += -DFFI2CODE_L10N="\"$(FFI2CODE_L10N)\"" -DFFI2CODE_L10N_EN
@@ -18,7 +18,7 @@ INCDIRS		= -I. -I$(LIBFLEXPATH)
 
 
 OBJS		=\
-		ffi2code.o\
+		ffi2code.$(OBJECTEXTENSION)\
 
 HEADERS		=\
 		version.h\
@@ -34,13 +34,13 @@ all: $(OBJS)
 #
 #			Objects
 #
-%.o: %.c $(HEADERS) Makefile
+%.$(OBJECTEXTENSION): %.c $(HEADERS) Makefile
 #	$(SPLINT) $(FLEXFLAGS) $(INCDIRS) $<
 #	$(LCLINT) $(FLEXFLAGS) $(INCDIRS) $<
 	$(CC) $(FLEXFLAGS) $(INCDIRS) $(CCFLAGS) $(WFLAGS) $(OPTFLAGS) -c $<
 
 
-version.h: Makefile
+version.h: Makefile ffi2code.c
 	echo 'char kFFI2CODE_VERSION[] = "0.0-alpha (build '`date '+%m-%d-%Y-%H:%M'`-`whoami`@`hostname -s`-`uname -s`-`uname -r`-`uname -m`\)\"\; > version.h
 
 

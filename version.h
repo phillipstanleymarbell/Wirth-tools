@@ -1,1 +1,1 @@
-char kFFI2CODE_VERSION[] = "0.0-alpha (build 07-31-2013-18:17-pip@silence-Darwin-13.0.0-x86_64)";
+char kFFI2CODE_VERSION[] = "0.0-alpha (build 11-04-2014-15:23-pip@30-71-91-Darwin-14.0.0-x86_64)";

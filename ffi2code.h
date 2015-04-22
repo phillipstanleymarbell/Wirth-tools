@@ -94,6 +94,7 @@ typedef enum
 	kFFI_CHUNK_PREDPRINTBUF_MULTIPLIER	= 8192,
 	kFFI_VERBOSE_CALLTRACE			= (1 << 0),
 	kFFI_VERBOSE_ACTIONTRACE		= (1 << 1),
+	kFFI_MAX_TOKEN_CHARS                    = 32        
 } FFIconstants;
 
 typedef struct

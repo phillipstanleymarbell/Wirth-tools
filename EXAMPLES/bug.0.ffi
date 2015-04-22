@@ -1,0 +1,191 @@
+--
+--	This causes a crash in ffi2code, I believe due to the presence of statements like
+--		production      P_crayonProgram:                firstset = {}
+--	where the resulting subtree for the firstset is not well formed. Started making changes to the handling of
+--	replace_ffsubtree() to handle this correctly (i.e., correctly handling a subtree->r->l == NULL).
+--
+--	I however need to get some other things done, and can get around the problem by defining a T_XXX token and
+--	doing
+--		production      P_crayonProgram:                firstset = {T_XXX}
+--	as I work through finishing off the definitions and testing as I go.
+--
+
+production	P_crayonProgram:		firstset = {firstset(P_programHead)}
+production	P_programHead:			firstset = {T_program}
+production	P_defn:			        firstset = {firstset(P_identifier)}
+production	P_typeSignature:		firstset = {firstset(P_type)}
+production	P_parameterValuePair:		firstset = {firstset(P_identifier)}
+production	P_zeroNine:			firstset = {T_STRING}
+production	P_oneNine:			firstset = {T_STRING}
+production	P_unsignedImmediate:		firstset = {T_STRING, firstset(P_oneNine)}
+production	P_stringConst:			firstset = {T_STRING}
+production	P_integerConst:			firstset = {T_STRING, firstset(P_unsignedImmediate)}
+production	P_dRealConst:			firstset = {T_STRING, firstset(P_oneNine)}
+production	P_eRealConst:			firstset = {firstset(P_dRealConst), firstset(P_integerConst)}
+production	P_realConst:			firstset = {firstset(P_dRealConst), firstset(P_eRealConst)}
+production	P_rationalConst:		firstset = {firstset(P_integerConst)}
+production	P_integerRelativeConst:		firstset = {firstset(P_integerConst)}
+production	P_realRelativeConst:		firstset = {firstset(P_realConst)}
+production	P_numericConst:			firstset = {firstset(P_integerConst), firstset(P_rationalConst), firstset(P_realConst)}
+production	P_addressExpr:			firstset = {T_AT}
+production	P_const:			firstset = {firstset(P_numericConst), firstset(P_realRelativeConst), firstset(P_integerRelativeConst),
+                                                                firstset(P_stringConst)}
+production	P_type:			        firstset = {T_color, T_shape, T_image, T_init}
+production	P_identifier:			firstset = {firstset(P_stringConst)}
+production	P_identifierList:		firstset = {firstset(P_identifier)}
+production	P_stmt:			        firstset = {firstset(P_assignStmt), firstset(P_declStmt), firstset(P_declAndAssignStmt)}
+production	P_assignStmt:			firstset = {firstset(P_identifier)}
+production	P_declStmt:			firstset = {firstset(P_identifier)}
+production	P_declAndAssignStmt:		firstset = {firstset(P_colorDeclAndAssignStmt), firstset(P_imageDeclAndAssignStmt),
+                                                                 firstset(P_shapeDeclAndAssignStmt), firstset(P_penDeclAndAssignStmt)}
+production	P_colorDeclAndAssignStmt:	firstset = {firstset(P_identifier)}
+production	P_imageDeclAndAssignStmt:	firstset = {firstset(P_identifier)}
+production	P_shapeDeclAndAssignStmt:	firstset = {firstset(P_identifier)}
+production	P_penDeclAndAssignStmt:		firstset = {firstset(P_identifier)}
+production	P_rgbExpr:			firstset = {T_rgb}
+production	P_cmykExpr:			firstset = {T_cmyk}
+production	P_hsvExpr:			firstset = {T_hsv}
+production	P_cielabExpr:			firstset = {T_cielab}
+production	P_builtinColor:			firstset = {T_Black, T_Blue, T_Gray, T_Green, T_Orange, T_Red, T_White, T_Yellow, T_Purple}
+production	P_colorExpr:			firstset = {firstset(P_rgbExpr), firstset(P_cmykExpr), firstset(P_hsvExpr), firstset(P_cielabExpr),
+                                                                firstset(P_builtinColor)}
+production	P_compositeOperator:		firstset = {T_over, T_in, T_out, T_atop, T_xor, T_plus}
+production	P_compositeExpr:		firstset = {T_composite}
+production	P_imageExpr:			firstset = {firstset(P_bitmapFromAddrExpr), firstset(P_compositeExpr), firstset(P_shapeExpr),
+                                                                firstset(P_colorExpr), firstset(P_patternExpr), firstset(P_gradientExpr)}
+production	P_bitmapFormat:			firstset = {T_rgb24bitmap}
+production	P_bitmapFromAddrExpr:		firstset = {firstset(P_bitmapFormat)}
+production	P_patternExpr:			firstset = {T_pattern}
+production	P_gradientExpr:			firstset = {T_gradient}
+production	P_point:			firstset = {T_LPAREN}
+production	P_cornerList:			firstset = {T_LBRACE}
+production	P_polygonExpr:			firstset = {T_polygon}
+production	P_ellipseExpr:			firstset = {T_ellipse}
+production	P_arcExpr:			firstset = {T_arc}
+production	P_basisSplineExpr:		firstset = {T_basisspline}
+production	P_bezierCurveExpr:		firstset = {T_beziercurve}
+production	P_penExpr:			firstset = {T_pen}
+production	P_affineXformExpr:		firstset = {T_affine}
+production	P_shearXformExpr:		firstset = {T_shear}
+production	P_translateXformExpr:		firstset = {T_translate}
+production	P_rotateXformExpr:		firstset = {T_rotate}
+production	P_scaleXformExpr:		firstset = {T_scale}
+production	P_shapeXformExpr:		firstset = {firstset(P_affineXformExpr), firstset(P_affineXformExpr),
+                                                                firstset(P_translateXformExpr), firstset(P_rotateXformExpr), firstset(P_scaleXformExpr)}
+production	P_shapeExpr:			firstset = {firstset(P_polygonExpr), firstset(P_ellipseExpr), firstset(P_arcExpr),
+                                                                firstset(P_basisSplineExpr), firstset(P_bezierCurveExpr), firstset(P_shapeXformExpr)}
+
+
+production	P_crayonProgram:		followset = {T_EOF}
+production	P_programHead:			followset = {firstset(P_defn)}
+production	P_defn:			        followset = {firstset(P_defn), followset(P_crayonProgram)}
+production	P_typeSignature:		followset = {T_EQUALS}
+production	P_parameterValuePair:		followset = {T_COMMA, T_RPARENS}
+production	P_zeroNine:			followset = {firstset(P_zeroNine), followset(P_unsignedImmediate), T_DOT, followset(P_dRealConst)}
+production	P_oneNine:			followset = {firstset(P_zeroNine)}
+production	P_unsignedImmediate:		followset = {followset(P_integerConst)}
+production	P_stringConst:			followset = {followset(P_const), followset(P_identifier)}
+production	P_integerConst:			followset = {}
+production	P_dRealConst:			followset = {}
+production	P_eRealConst:			followset = {}
+production	P_realConst:			followset = {}
+production	P_rationalConst:		followset = {}
+production	P_integerRelativeConst:		followset = {}
+production	P_realRelativeConst:		followset = {}
+production	P_numericConst:			followset = {}
+production	P_addressExpr:			followset = {}
+production	P_const:			followset = {}
+production	P_type:			        followset = {}
+production	P_identifier:			followset = {}
+production	P_identifierList:		followset = {}
+production	P_stmt:			        followset = {}
+production	P_assignStmt:			followset = {}
+production	P_declStmt:			followset = {}
+production	P_declAndAssignStmt:		followset = {}
+production	P_colorDeclAndAssignStmt:	followset = {}
+production	P_imageDeclAndAssignStmt:	followset = {}
+production	P_shapeDeclAndAssignStmt:	followset = {}
+production	P_penDeclAndAssignStmt:		followset = {}
+production	P_rgbExpr:			followset = {}
+production	P_cmykExpr:			followset = {}
+production	P_hsvExpr:			followset = {}
+production	P_cielabExpr:			followset = {}
+production	P_builtinColor:			followset = {}
+production	P_colorExpr:			followset = {}
+production	P_compositeOperator:		followset = {}
+production	P_compositeExpr:		followset = {}
+production	P_imageExpr:			followset = {}
+production	P_bitmapFormat:			followset = {}
+production	P_bitmapFromAddrExpr:		followset = {}
+production	P_patternExpr:			followset = {}
+production	P_gradientExpr:			followset = {}
+production	P_point:			followset = {}
+production	P_cornerList:			followset = {}
+production	P_polygonExpr:			followset = {}
+production	P_ellipseExpr:			followset = {}
+production	P_arcExpr:			followset = {}
+production	P_basisSplineExpr:		followset = {}
+production	P_bezierCurveExpr:		followset = {}
+production	P_penExpr:			followset = {}
+production	P_affineXformExpr:		followset = {}
+production	P_shearXformExpr:		followset = {}
+production	P_translateXformExpr:		followset = {}
+production	P_rotateXformExpr:		followset = {}
+production	P_scaleXformExpr:		followset = {}
+production	P_shapeXformExpr:		followset = {}
+production	P_shapeExpr:			followset = {}
+
+
+token	        T_cielab:                       followset = {}
+token	        T_cmyk:			        followset = {}
+token	        T_color:			followset = {}
+token	        T_composite:			followset = {}
+token	        T_ellipse:			followset = {}
+token	        T_gradient:			followset = {}
+token	        T_image:			followset = {}
+token	        T_in:                           followset = {}
+token	        T_out:                          followset = {}
+token	        T_over:			        followset = {}
+token	        T_pattern:			followset = {}
+token	        T_pen:			        followset = {}
+token	        T_perceptible:			followset = {}
+token	        T_plus:			        followset = {}
+token	        T_png:			        followset = {}
+token	        T_polygon:			followset = {}
+token	        T_program:			followset = {}
+token	        T_rgb24bitmap:			followset = {}
+token	        T_rotate:			followset = {}
+token	        T_scale:			followset = {}
+token	        T_shape:			followset = {}
+token	        T_shear:			followset = {}
+token	        T_translate:			followset = {}
+token	        T_xor:			        followset = {}
+token	        T_beziercurve:			followset = {}
+token	        T_init:			        followset = {}
+token	        T_rgb:			        followset = {}
+token	        T_Black:			followset = {}
+token   	T_Blue:			        followset = {}
+token	        T_Green:			followset = {}
+token	        T_Red:			        followset = {}
+token	        T_White:			followset = {}
+token	        T_affine:			followset = {}
+token	        T_arc:			        followset = {}
+token	        T_atop:			        followset = {}
+token	        T_basisspline:			followset = {}
+
+token           T_STRING:                       followset = {}
+token           T_AT:                           followset = {}
+token           T_LPAREN:                       followset = {}
+token           T_RPAREN:                       followset = {}
+token           T_LBRACE:                       followset = {}
+token           T_RBRACE:                       followset = {}
+token           T_COLON:                        followset = {}
+token           T_SEMICOLON:                    followset = {}
+token           T_DOT:                          followset = {}
+token           T_EQUALS:                       followset = {}
+token           T_COMMA:                        followset = {}
+token           T_PERCENT:                      followset = {}
+token           T_DIVIDE:                       followset = {}
+token           T_EOF:                          followset = {T_EOF}
+
+token           T_XXX:                          followset = {T_XXX}     --      Temporary to put where we'd otherwise have an empty set
