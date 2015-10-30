@@ -1,5 +1,5 @@
-LIBFLEXPATH     = /Users/pip/Projects/libflex
-CONFIGPATH	= /Users/pip/Projects/libflex
+LIBFLEXPATH     = /Volumes/doos/libflex-hg-clone
+CONFIGPATH	= /Volumes/doos/libflex-hg-clone
 include		$(CONFIGPATH)/config.$(OSTYPE)-$(MACHTYPE).clang
 include		config.$(OSTYPE)-$(MACHTYPE).clang
 
