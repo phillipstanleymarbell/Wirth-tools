@@ -37,6 +37,7 @@ all: $(OBJS)
 %.$(OBJECTEXTENSION): %.c $(HEADERS) Makefile
 #	$(SPLINT) $(FLEXFLAGS) $(INCDIRS) $<
 #	$(LCLINT) $(FLEXFLAGS) $(INCDIRS) $<
+	$(CC) $(FLEXFLAGS) $(INCDIRS) $(CCFLAGS) $(WFLAGS) $(OPTFLAGS) -c --analyze $<
 	$(CC) $(FLEXFLAGS) $(INCDIRS) $(CCFLAGS) $(WFLAGS) $(OPTFLAGS) -c $<
 
 
