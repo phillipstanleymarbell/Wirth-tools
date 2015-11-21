@@ -156,7 +156,7 @@ ASTnode *	copy_subtree(ASTnode *subtree, FFIstate *F);
 void		delete_subtree(ASTnode *subtree, FFIstate *F);
 void		codegen(FFIstate *F, ASTnode *root);
 
-void		fatal(FFIstate *F, const char *msg);
+void		fatal(FFIstate *F, const char *msg) __attribute__((noreturn));
 void		error(FFIstate *F, const char *msg);
 void		usage(FFIstate *F);
 
@@ -269,6 +269,7 @@ main(int argc, char *argv[])
 	{
 		fprintf(stderr, "Pass %d...\n", passNumber++);
 		replace_firstandfollowsets(astroot, astroot, F);
+//		if (passNumber > 4) codegen(F, astroot);
 	}
 	//fprintf(stdout, "After replacements: %s\n", ast_print(F, astroot));
 	
@@ -1144,6 +1145,8 @@ has_recursive_definitions(ASTnode *node, FFIstate *F)
 	)
 	{
 		has |= 1;
+fprintf(stderr, ".");
+//fprintf(stdout, "node has recursive definitions : %s", ast_print(F, node));
 	}
 	
 	return has;
@@ -1549,6 +1552,7 @@ dotfmt(FFIstate *F, char *buf, int buflen, ASTnode *p)
 	r = (char *)calloc(kFFI_MAXPRINTBUF, sizeof(char));
 	if (r == NULL)
 	{
+		free(l);
 		fatal(F, Emalloc);
 	}
 
@@ -1573,7 +1577,7 @@ dotfmt(FFIstate *F, char *buf, int buflen, ASTnode *p)
 	n += snprintf(&buf[n], buflen, "\tP" FLEX_PTRFMTH ":left -> %s;\n", (FlexAddr)p, l);
 	buflen -= n;
 	n += snprintf(&buf[n], buflen, "\tP" FLEX_PTRFMTH ":right -> %s;\n", (FlexAddr)p, r);
-	buflen -= n;
+	//buflen -= n;
 
 	free(src);
 	free(l);
@@ -1595,7 +1599,7 @@ ast_print(FFIstate *F, ASTnode *p)
 
 	/*	Heuristic	*/
 	treesz = ast_treesz(F, p);
-	buflen = treesz*kFFI_CHUNK_PREDPRINTBUF_MULTIPLIER;
+	buflen = (treesz + 1)*kFFI_CHUNK_PREDPRINTBUF_MULTIPLIER;
 
 	/*							*/
 	/*	 This buffer is deallocated by our caller	*/
