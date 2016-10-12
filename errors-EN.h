@@ -1,5 +1,5 @@
 /*
-	Authored 2013. Phillip Stanley-Marbell
+	Authored 2013-2016. Phillip Stanley-Marbell
  
 	All rights reserved.
 
