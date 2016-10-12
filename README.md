@@ -1,3 +1,6 @@
+Wirth Tools
+===========
+
 Wirth is a set of tools to automate construction of a recursive-descent
 parser in the Wirth style.
 
@@ -24,6 +27,7 @@ parser in the Wirth style.
 
 
 TODO/ideas:
+-----------
 	1.	Given an (optional) directory containing several files,
 		it creates a table with the empirical correlation
 		coefficients for all the language's tokens, and for
