@@ -304,7 +304,7 @@ main(int argc, char *argv[])
 	//fprintf(stdout, "Before replacements: %s\n", ast_print(F, astroot));
 	while (has_recursive_definitions(astroot, F))
 	{
-		fprintf(stderr, "Pass %d...\n", passNumber++);
+//		fprintf(stderr, "Pass %d...\n", passNumber++);
 		replace_firstandfollowsets(astroot, astroot, F);
 //		if (passNumber > 4) codegen(F, astroot);
 	}
@@ -404,7 +404,7 @@ nexttoken(FFIstate *F)
 	{
 		while (I->head != NULL && strncmp(I->head->data, "\n", 1))
 		{
-			fprintf(stderr, "[%s] is in comment\n", I->head->data);
+//			fprintf(stderr, "[%s] is in comment\n", I->head->data);
 			removetoken(F);
 
 			//TODO: Are we not advancing head?...
@@ -1182,7 +1182,7 @@ has_recursive_definitions(ASTnode *node, FFIstate *F)
 	)
 	{
 		has |= 1;
-fprintf(stderr, ".");
+//fprintf(stderr, ".");
 //fprintf(stdout, "node has recursive definitions : %s", ast_print(F, node));
 	}
 	

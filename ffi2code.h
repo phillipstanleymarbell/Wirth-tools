@@ -68,7 +68,7 @@ typedef enum
 
 	T_EPSILON		= 22,
 
-	/*							*/					
+	/*							*/
 	/*	Used for chaining items in the AST		*/
 	/*							*/
 	X_SEQ			= 23,
@@ -131,7 +131,7 @@ typedef enum
 	kFFI_CHUNK_PREDPRINTBUF_MULTIPLIER	= 8192,
 	kFFI_VERBOSE_CALLTRACE			= (1 << 0),
 	kFFI_VERBOSE_ACTIONTRACE		= (1 << 1),
-	kFFI_MAX_TOKEN_CHARS                    = 32        
+	kFFI_MAX_TOKEN_CHARS			= 32
 } FFIconstants;
 
 typedef struct
