@@ -209,7 +209,7 @@ void		usage(FFIstate *F);
  *	8.	The enums for the token and production identifiers are currently not generated, and the generated code assumes the max enum is identically #tokens+#productions
  *	9.	More efficient allocation of the arrays for the final code generation pass. We currently allocate multiple arrays with as many entries as tree nodes
  *	10.	Even after we allocate arrays more prudently, once we get array back, need to (a) sort (b) remove duplicates (c) realloc to shrink to fit
- *	11.	Find a better solution for MAX_TOKEN_CHARS (number of chars for a P_XXX or T_XXX token) as well as the hardcoded "%-32s" in gentokenlist
+ *	11.	Find a better solution for MAX_TOKEN_CHARS (number of chars for a P_XXX or T_XXX token) as well as the hardcoded "%-64s" in gentokenlist
  *	12.	Use gASTnodeSTRINGS/gASTnodeDESCRIPTIONS more often, to give string descriptions, rather than passing around literal string in some cases
  *      13.     Add a pass to check that literal tokens in the tree are defined before use. As things stand at the moment, e.g., for the Crayon ffi, ffi2code will accept
  *                      production	P_point:			followset = {T_COMMA, T_RBRACE, R_RPARENS}
@@ -1279,7 +1279,7 @@ gentokenlist(FFIstate *F, ASTnode *root, char *identifier, ASTnodeType type)
 	/*	Get the XSEQ	*/
 	subtree = subtree->r->l;
 	
-	fprintf(stdout, "                                               [%-32s]            = ", identifier);
+	fprintf(stdout, "                                               [%-64s]            = ", identifier);
 	for (i = 0; subtree != NULL; subtree = subtree->l)
 	{
 		if (subtree->r == NULL || subtree->r->tokenstring == NULL)
@@ -1420,11 +1420,11 @@ codegen(FFIstate *F, ASTnode *root)
         fprintf(stdout, "char	*gASTnodeSTRINGS[astNodeMax]	= {\n");
 	for (i = 0; i < productionsCount; i++)
 	{
-		fprintf(stdout, "                                               [%32s]            = \"%s\",\n", productions[i], productions[i]);
+		fprintf(stdout, "                                               [%64s]            = \"%s\",\n", productions[i], productions[i]);
 	}
 	for (i = 0; i < tokensCount; i++)
 	{
-		fprintf(stdout, "                                               [%32s]            = \"%s\",\n", tokens[i], tokens[i]);
+		fprintf(stdout, "                                               [%64s]            = \"%s\",\n", tokens[i], tokens[i]);
 	}
 	fprintf(stdout, "                                   };\n");
 }
