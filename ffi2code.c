@@ -180,17 +180,15 @@ const char	Effi2codefatal[]	= "ffi2code---fatal error: ";
 const char	Effi2codeerror[]	= "ffi2code---error: ";
 
 
-ASTnode*	parse_language(FFIstate *F);
-ASTnode*	parse_ffstmt(FFIstate *F);
-ASTnode*	parse_xsetstmt(FFIstate *F, ASTnodeType x);
-//ASTnode*	parse_firstsetop(FFIstate *F);
-ASTnode*	parse_firstset(FFIstate *F);
-//ASTnode*	parse_followsetop(FFIstate *F);
-ASTnode*	parse_followset(FFIstate *F);
+ASTnode*	parseLanguage(FFIstate *F);
+ASTnode*	parseFFstmt(FFIstate *F);
+ASTnode*	parseXsetStmt(FFIstate *F, ASTnodeType x);
+ASTnode*	parseFirstSet(FFIstate *F);
+ASTnode*	parseFollowSet(FFIstate *F);
 
-char*		ast_print(FFIstate *F, ASTnode *p);
-int		ast_treesz(FFIstate *F, ASTnode *p);
-int		ast_printwalk(FFIstate *F, ASTnode *p, char *buf, int buflen);
+char*		astPrint(FFIstate *F, ASTnode *p);
+int		astTreeSize(FFIstate *F, ASTnode *p);
+int		astPrintWalk(FFIstate *F, ASTnode *p, char *buf, int buflen);
 void		astColorTree(FFIstate *F, ASTnode *p, FFIcolor color);
 int		dotfmt(FFIstate *F, char *buf, int buflen, ASTnode *p);
 bool		hasLoops(FFIstate *  F, ASTnode *  root);
@@ -311,7 +309,7 @@ main(int argc, char *argv[])
 	//flexstreamchk(F->Fe, F->Fm, F->Fperr, F->Fi, 0, 0);
 	
 
-	astroot = parse_language(F);
+	astroot = parseLanguage(F);
 	
 	while (hasRecursiveDefinitions(astroot, F))
 	{
@@ -325,7 +323,7 @@ main(int argc, char *argv[])
 		if (hasLoops(F, astroot))
 		{
 			flexprint(F->Fe, F->Fm, F->Fperr, "Loop in AST after pass %d...\n", passNumber);
-			flexprint(F->Fe, F->Fm, F->Fpinfo, "AST dump:\n", ast_print(F, astroot));
+			flexprint(F->Fe, F->Fm, F->Fpinfo, "AST dump:\n", astPrint(F, astroot));
 			exit(EXIT_FAILURE);
 		}
 //if (passNumber > 15) codegen(F, astroot);
@@ -535,7 +533,7 @@ syntaxerror(FFIstate *F, ASTnodeType production, ASTnodeType prodtoken)
 }
 
 ASTnode*
-parse_language(FFIstate *F)
+parseLanguage(FFIstate *F)
 {
 	ASTnode	*stmt, *root, *p;
 
@@ -563,7 +561,7 @@ parse_language(FFIstate *F)
 	root->type = P_LANGUAGE;
 	p = root;
 
-	while ((stmt = parse_ffstmt(F)) != NULL)
+	while ((stmt = parseFFstmt(F)) != NULL)
 	{
 		p->l = (ASTnode*)calloc(1, sizeof(ASTnode));
 		if (p->l == NULL)
@@ -598,7 +596,7 @@ lookahead4(Input *I, const char *string)
 }
 
 ASTnode*
-parse_ffstmt(FFIstate *F)
+parseFFstmt(FFIstate *F)
 {
 	Input		*I = &F->Fi->istream;
 
@@ -617,12 +615,12 @@ parse_ffstmt(FFIstate *F)
 
 	if (lookahead4(I, "firstset"))
 	{
-		return parse_xsetstmt(F, P_FIRSTSETSTMT);
+		return parseXsetStmt(F, P_FIRSTSETSTMT);
 	}
 
 	if (lookahead4(I, "followset"))
 	{
-		return parse_xsetstmt(F, P_FOLLOWSETSTMT);
+		return parseXsetStmt(F, P_FOLLOWSETSTMT);
 	}
 
 	flexprint(F->Fe, F->Fm, F->Fperr, "\n\tSyntax error while parsing %s. Current input steam is:\n\n", gASTnodeDESCRIPTIONS[P_FFSTMT]);
@@ -633,7 +631,7 @@ parse_ffstmt(FFIstate *F)
 
 
 ASTnode*
-parse_xsetstmt(FFIstate *F, ASTnodeType x)
+parseXsetStmt(FFIstate *F, ASTnodeType x)
 {
 	/*
 		ffstmt		::= firstsetstmt | followsetstmt .
@@ -648,7 +646,7 @@ parse_xsetstmt(FFIstate *F, ASTnodeType x)
 
 	if (F->verbose & kFFI_VERBOSE_CALLTRACE)
 	{
-		flexprint(F->Fe, F->Fm, F->Fperr, "parse_xsetstmt()\n");
+		flexprint(F->Fe, F->Fm, F->Fperr, "parseXsetStmt()\n");
 	}
 
 
@@ -712,11 +710,11 @@ parse_xsetstmt(FFIstate *F, ASTnodeType x)
 
 	if (x == P_FIRSTSETSTMT)
 	{
-		r = parse_firstset(F);
+		r = parseFirstSet(F);
 	}
 	else if (x == P_FOLLOWSETSTMT)
 	{
-		r = parse_followset(F);
+		r = parseFollowSet(F);
 	}
 	else
 	{
@@ -731,19 +729,6 @@ parse_xsetstmt(FFIstate *F, ASTnodeType x)
 	return root;
 }
 
-
-/*
-ASTnode*
-parse_firstsetop(FFIstate *F)
-{
-	if (F->verbose & kFFI_VERBOSE_CALLTRACE)
-	{
-		flexprint(F->Fe, F->Fm, F->Fperr, "parse_firstsetop()\n");
-	}
-
-	return NULL;
-}
-*/
 
 ASTnode*
 parse_xset(FFIstate *F, ASTnodeType x)
@@ -897,36 +882,23 @@ parse_xset(FFIstate *F, ASTnodeType x)
 
 
 ASTnode*
-parse_firstset(FFIstate *F)
+parseFirstSet(FFIstate *F)
 {
 	if (F->verbose & kFFI_VERBOSE_CALLTRACE)
 	{
-		flexprint(F->Fe, F->Fm, F->Fperr, "parse_firstset()\n");
+		flexprint(F->Fe, F->Fm, F->Fperr, "parseFirstSet()\n");
 	}
 
 	return parse_xset(F, P_FIRSTSET);
 }
 
 
-/*
 ASTnode*
-parse_followsetop(FFIstate *F)
+parseFollowSet(FFIstate *F)
 {
 	if (F->verbose & kFFI_VERBOSE_CALLTRACE)
 	{
-		flexprint(F->Fe, F->Fm, F->Fperr, "parse_followsetop()\n");
-	}
-
-	return NULL;
-}
-*/
-
-ASTnode*
-parse_followset(FFIstate *F)
-{
-	if (F->verbose & kFFI_VERBOSE_CALLTRACE)
-	{
-		flexprint(F->Fe, F->Fm, F->Fperr, "parse_followset()\n");
+		flexprint(F->Fe, F->Fm, F->Fperr, "parseFollowSet()\n");
 	}
 
 	return parse_xset(F, P_FOLLOWSET);
@@ -1129,7 +1101,7 @@ replaceFirstOrFollowSubtree(ASTnode *root, ASTnode *node, FFIstate *F, ASTnodeTy
 	if (parent == NULL)
 	{
 		fprintf(stdout, "Badly formed tree: could not find parent node for root of subtree %s\n",
-			(!F->verbose ? "(...)" : ast_print(F, root)));
+			(!F->verbose ? "(...)" : astPrint(F, root)));
 		exit(EXIT_FAILURE);
 	}
 		
@@ -1139,13 +1111,13 @@ replaceFirstOrFollowSubtree(ASTnode *root, ASTnode *node, FFIstate *F, ASTnodeTy
 	{
 			fprintf(stdout, "Badly formed tree: could not find node for [%s]\nSearched tree is:\n%s\n\nReturned subtree is:\n%s\n\n",
 				node->r->l->tokenstring,
-				(!F->verbose ? "(...)" : ast_print(F, root)),
-				(!F->verbose ? "(...)" : ast_print(F, subtree)));
+				(!F->verbose ? "(...)" : astPrint(F, root)),
+				(!F->verbose ? "(...)" : astPrint(F, subtree)));
 			exit(EXIT_FAILURE);
 	}
 
 if (subtree != NULL) fprintf(stderr, "Found subtree for %s of [%s]: \n", gASTnodeSTRINGS[type], node->r->l->tokenstring);
-//if (subtree != NULL) fprintf(stdout, "%s\n", (!F->verbose ? "(...)" : ast_print(F, subtree)));
+//if (subtree != NULL) fprintf(stdout, "%s\n", (!F->verbose ? "(...)" : astPrint(F, subtree)));
 
 	/*
 	 *	The subtree->r->l is the replacement XSEQ chain we
@@ -1175,7 +1147,7 @@ if (subtree != NULL) fprintf(stderr, "Found subtree for %s of [%s]: \n", gASTnod
 	 *	the parent pointer. We should eventually migrate to
 	 *	doubly-linked node edges to obviate need for this.
 	 */
-	//fprintf(stderr, "Replacing subtree: %s\n", (!F->verbose ? "(...)" : ast_print(F, node)));
+	//fprintf(stderr, "Replacing subtree: %s\n", (!F->verbose ? "(...)" : astPrint(F, node)));
 
 	if (subtree->r->l == NULL)
 	{
@@ -1209,7 +1181,7 @@ if (subtree != NULL) fprintf(stderr, "Found subtree for %s of [%s]: \n", gASTnod
 	}
 	free(node);
 
-	//fprintf(stderr, "New subtree: %s\n", (!F->verbose ? "(...)" : ast_print(F, subtreeSeqCopy)));
+	//fprintf(stderr, "New subtree: %s\n", (!F->verbose ? "(...)" : astPrint(F, subtreeSeqCopy)));
 }
 
 int
@@ -1232,7 +1204,7 @@ hasRecursiveDefinitions(ASTnode *node, FFIstate *F)
 	{
 		has |= 1;
 //fprintf(stderr, ".");
-//fprintf(stdout, "node has recursive definitions : %s", ast_print(F, node));
+//fprintf(stdout, "node has recursive definitions : %s", astPrint(F, node));
 	}
 	
 	return has;
@@ -1305,7 +1277,7 @@ gentokenlist(FFIstate *F, ASTnode *root, char *identifier, ASTnodeType type)
 	char		**buffer;
 	
 	//TODO: need better estimate on how many token slots to allocate
-	treeSize = ast_treesz(F, root);
+	treeSize = astTreeSize(F, root);
 	buffer = calloc(treeSize, kFFI_MAX_TOKEN_CHARS);
 	if (buffer == NULL)
 	{
@@ -1321,7 +1293,7 @@ gentokenlist(FFIstate *F, ASTnode *root, char *identifier, ASTnodeType type)
 	{
 		fprintf(stdout, "Badly formed tree: could not find node for [%s]\nSearched tree is:\n %s\n",
 			identifier,
-			(!F->verbose ? "(...)" : ast_print(F, root)));
+			(!F->verbose ? "(...)" : astPrint(F, root)));
 		exit(EXIT_FAILURE);
 	}
 	
@@ -1397,7 +1369,7 @@ codegen(FFIstate *F, ASTnode *root)
 	
 	
 	//TODO: need better estimate on how many token slots to allocate
-	treeSize = ast_treesz(F, root);
+	treeSize = astTreeSize(F, root);
 	
 	/*
 	 *	FIRST() and FOLLOW() tables are 2D arrays enum constants.
@@ -1501,7 +1473,7 @@ astColorTree(FFIstate *F, ASTnode *p, FFIcolor color)
 }
 
 int
-ast_treesz(FFIstate *F, ASTnode *p)
+astTreeSize(FFIstate *F, ASTnode *p)
 {
 	if (p == NULL)
 	{
@@ -1510,15 +1482,15 @@ ast_treesz(FFIstate *F, ASTnode *p)
 
 	if (p->l == p || p->r == p)
 	{
-		error(F, "Immediate cycle in predtree, seen in ast_treesz()!!\n");
+		error(F, "Immediate cycle in predtree, seen in astTreeSize()!!\n");
 		return 0;
 	}
 
-	return (1 + ast_treesz(F, p->l) + ast_treesz(F, p->r));
+	return (1 + astTreeSize(F, p->l) + astTreeSize(F, p->r));
 }
 
 int
-ast_printwalk(FFIstate *F, ASTnode *p, char *buf, int buflen)
+astPrintWalk(FFIstate *F, ASTnode *p, char *buf, int buflen)
 {
 	int	n0 = 0, n1 = 0, n2 = 0, n = 0;
 
@@ -1534,7 +1506,7 @@ ast_printwalk(FFIstate *F, ASTnode *p, char *buf, int buflen)
 
 	if (p->l == p || p->r == p)
 	{
-		fprintf(stderr, "Immediate cycle in AST, seen in ast_printwalk()!!\n");
+		fprintf(stderr, "Immediate cycle in AST, seen in astPrintWalk()!!\n");
 
 		return 0;
 	}
@@ -1543,8 +1515,8 @@ ast_printwalk(FFIstate *F, ASTnode *p, char *buf, int buflen)
 	/*	For DOT, we walk tree in postorder, though it doesn't matter	*/
 	/*	either way.							*/
 	/*									*/
-	n0 = ast_printwalk(F, p->l, &buf[0], buflen);
-	n1 = ast_printwalk(F, p->r, &buf[n0], buflen-n0);
+	n0 = astPrintWalk(F, p->l, &buf[0], buflen);
+	n1 = astPrintWalk(F, p->r, &buf[n0], buflen-n0);
 
 	/*	Only process Pred nodes once	*/
 	if (p->color == kFFIcolorASTprintColor)
@@ -1671,7 +1643,7 @@ dotfmt(FFIstate *F, char *buf, int buflen, ASTnode *p)
 }
 
 char *
-ast_print(FFIstate *F, ASTnode *p)
+astPrint(FFIstate *F, ASTnode *p)
 {
 	int			buflen, treesz, n = 0;
 	char			*buf = NULL;
@@ -1681,7 +1653,7 @@ ast_print(FFIstate *F, ASTnode *p)
 
 
 	/*	Heuristic	*/
-	treesz = ast_treesz(F, p);
+	treesz = astTreeSize(F, p);
 	buflen = (treesz + 1)*kFFI_CHUNK_PREDPRINTBUF_MULTIPLIER;
 
 	/*							*/
@@ -1738,7 +1710,7 @@ ast_print(FFIstate *F, ASTnode *p)
 	astColorTree(F, p, kFFIcolorASTprintColor);
 
 
-	n += ast_printwalk(F, p, &buf[n], buflen);
+	n += astPrintWalk(F, p, &buf[n], buflen);
 	buflen -= n;
 //fprintf(stderr, "buflen = %d\n", buflen);
 	/*		In case of DOT, need prologue and epilogue		*/
