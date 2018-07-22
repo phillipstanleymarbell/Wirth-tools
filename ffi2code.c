@@ -48,6 +48,16 @@
 #include "ffi2code.h"
 
 
+typedef enum
+{
+	kFFIcolorInvalid		=	0,
+
+	kFFIcolorASTprintColor		=	(1 << 0),
+	kFFIcolorASTprintNoColor	=	(1 << 1),
+	kFFIloopDetectionMarkColor	=	(1 << 2),
+	kFFIloopDetectionPlainColor	=	(1 << 3),	
+} FFIcolor;
+
 char	*gASTnodeSTRINGS[ASTnode_MAX]	= {
 						[P_LANGUAGE]		= "P_LANGUAGE",		/*	0	*/
 						[P_FFSTMT]		= "P_FFSTMT",		/*	1	*/
@@ -181,16 +191,18 @@ ASTnode*	parse_followset(FFIstate *F);
 char*		ast_print(FFIstate *F, ASTnode *p);
 int		ast_treesz(FFIstate *F, ASTnode *p);
 int		ast_printwalk(FFIstate *F, ASTnode *p, char *buf, int buflen);
-void		ast_colortree(FFIstate *F, ASTnode *p, int color);
+void		astColorTree(FFIstate *F, ASTnode *p, FFIcolor color);
 int		dotfmt(FFIstate *F, char *buf, int buflen, ASTnode *p);
+bool		hasLoops(FFIstate *  F, ASTnode *  root);
+bool		recurseDetectLoops(FFIstate *  F, ASTnode *  node);
 
-void		replace_firstandfollowsets(ASTnode *root, ASTnode *node, FFIstate *F);
-int		has_recursive_definitions(ASTnode *node, FFIstate *F);
-ASTnode *	find_parentpointer(ASTnode *searchtree, ASTnode *matchnode, FFIstate *F);
-ASTnode *	find_subtree(ASTnode *node, ASTnodeType type, char *identifier, FFIstate *F);
-ASTnode *	newnode(ASTnodeType type, char *tokenstring, ASTnode *l, ASTnode *r, int color, FFIstate *F);
-ASTnode *	copy_subtree(ASTnode *subtree, FFIstate *F);
-void		delete_subtree(ASTnode *subtree, FFIstate *F);
+void		replaceFirstAndFollowSets(ASTnode *root, ASTnode *node, FFIstate *F);
+int		hasRecursiveDefinitions(ASTnode *node, FFIstate *F);
+ASTnode *	findParentPointer(ASTnode *searchtree, ASTnode *matchnode, FFIstate *F);
+ASTnode *	findSubtree(ASTnode *node, ASTnodeType type, char *identifier, FFIstate *F);
+ASTnode *	newnode(ASTnodeType type, char *tokenstring, ASTnode *l, ASTnode *r, FFIcolor color, FFIstate *F);
+ASTnode *	copySubtree(ASTnode *subtree, FFIstate *F);
+void		deleteSubtree(ASTnode *subtree, FFIstate *F);
 void		codegen(FFIstate *F, ASTnode *root);
 
 void		fatal(FFIstate *F, const char *msg) __attribute__((noreturn));
@@ -199,7 +211,7 @@ void		usage(FFIstate *F);
 
 /*
  *	TODO:
- *	1.	The first and follow sets after replace_firstandfollowsets will contain duplicates. Not a problem, but should be removed
+ *	1.	The first and follow sets after replaceFirstAndFollowSets will contain duplicates. Not a problem, but should be removed
  *	2.	We don't yet handle recursive case where, e.g., firstset(P_Y) = firstset(P_X), and the latter is in turn also defined in terms of firstset(P_W) 
  *	3.	Cleanup order of arguments (e.g., makes more sense to have the FFIstate always be the first argument)
  *	4.	Cleanup what functions are static, etc.
@@ -209,13 +221,13 @@ void		usage(FFIstate *F);
  *	8.	The enums for the token and production identifiers are currently not generated, and the generated code assumes the max enum is identically #tokens+#productions
  *	9.	More efficient allocation of the arrays for the final code generation pass. We currently allocate multiple arrays with as many entries as tree nodes
  *	10.	Even after we allocate arrays more prudently, once we get array back, need to (a) sort (b) remove duplicates (c) realloc to shrink to fit
- *	11.	Find a better solution for MAX_TOKEN_CHARS (number of chars for a P_XXX or T_XXX token) as well as the hardcoded "%-64s" in gentokenlist
+ *	11.	Find a better solution for MAX_TOKEN_CHARS (number of chars for a P_XXX or T_XXX token) as well as the hardcoded "%-48s" in gentokenlist
  *	12.	Use gASTnodeSTRINGS/gASTnodeDESCRIPTIONS more often, to give string descriptions, rather than passing around literal string in some cases
- *      13.     Add a pass to check that literal tokens in the tree are defined before use. As things stand at the moment, e.g., for the Crayon ffi, ffi2code will accept
- *                      production	P_point:			followset = {T_COMMA, T_RBRACE, R_RPARENS}
- *              even though "R_RPARENS" is not a defined token, and should be "T_RPARENS"
- *      14.     The ffi grammar format should be extended to allow definition of the firstset of the tokens, and the ffi2code should then generate the gTOKENSTRS[] array which is used by the lexer for identifying reserved tokens
- *      15.     Pick better naming convention for gASTnodeSTRINGS T_xxx, P_xxx, etc. Use camelcase consistently...
+ *	13.	Add a pass to check that literal tokens in the tree are defined before use. As things stand at the moment, e.g., for the Crayon ffi, ffi2code will accept
+ *		production	P_point:			followset = {T_COMMA, T_RBRACE, R_RPARENS}
+ *		even though "R_RPARENS" is not a defined token, and should be "T_RPARENS"
+ *	14.	The ffi grammar format should be extended to allow definition of the firstset of the tokens, and the ffi2code should then generate the gTOKENSTRS[] array which is used by the lexer for identifying reserved tokens
+ *	15.	Pick better naming convention for gASTnodeSTRINGS T_xxx, P_xxx, etc. Use camelcase consistently...
  */
 
 int
@@ -270,7 +282,7 @@ main(int argc, char *argv[])
 	filename = argv[1];
 	
 	//TODO: use getopt to determine verbosity
-	F->verbose = 0;
+	F->verbose = kFFI_VERBOSE_CALLTRACE | kFFI_VERBOSE_ACTIONTRACE;
 
 
 
@@ -301,19 +313,56 @@ main(int argc, char *argv[])
 
 	astroot = parse_language(F);
 	
-	//fprintf(stdout, "Before replacements: %s\n", ast_print(F, astroot));
-	while (has_recursive_definitions(astroot, F))
+	while (hasRecursiveDefinitions(astroot, F))
 	{
-//		fprintf(stderr, "Pass %d...\n", passNumber++);
-		replace_firstandfollowsets(astroot, astroot, F);
-//		if (passNumber > 4) codegen(F, astroot);
+		if (F->verbose)
+		{
+			flexprint(F->Fe, F->Fm, F->Fperr, "Pass %d...\n", passNumber);
+		}
+
+		replaceFirstAndFollowSets(astroot, astroot, F);
+
+		if (hasLoops(F, astroot))
+		{
+			flexprint(F->Fe, F->Fm, F->Fperr, "Loop in AST after pass %d...\n", passNumber);
+			flexprint(F->Fe, F->Fm, F->Fpinfo, "AST dump:\n", ast_print(F, astroot));
+			exit(EXIT_FAILURE);
+		}
+//if (passNumber > 15) codegen(F, astroot);
+
+		passNumber++;
 	}
-	//fprintf(stdout, "After replacements: %s\n", ast_print(F, astroot));
-	
+
 	codegen(F, astroot);
 
-
 	exit(EXIT_SUCCESS);
+}
+
+bool
+hasLoops(FFIstate *  F, ASTnode *  root)
+{
+	astColorTree(F, root, kFFIloopDetectionPlainColor);
+
+	return recurseDetectLoops(F, root);
+}
+
+bool
+recurseDetectLoops(FFIstate *  F, ASTnode *  node)
+{
+	if (node == NULL)
+	{
+		return false;
+	}
+
+	node->color = kFFIloopDetectionMarkColor;
+
+	if (	((node->l != NULL) && (node->l->color == kFFIloopDetectionMarkColor))	||
+		((node->r != NULL) && (node->r->color == kFFIloopDetectionMarkColor))	)
+	{
+		return true;
+	}
+
+	return (recurseDetectLoops(F, node->l) || recurseDetectLoops(F, node->r));
 }
 
 /*
@@ -885,7 +934,7 @@ parse_followset(FFIstate *F)
 
 
 ASTnode *
-find_subtree(ASTnode *node, ASTnodeType type, char *identifier, FFIstate *F)
+findSubtree(ASTnode *node, ASTnodeType type, char *identifier, FFIstate *F)
 {
 	ASTnode	*found;
 
@@ -895,12 +944,12 @@ find_subtree(ASTnode *node, ASTnodeType type, char *identifier, FFIstate *F)
 		return NULL;
 	}
 
-	if ((found = find_subtree(node->l, type, identifier, F)) != NULL)
+	if ((found = findSubtree(node->l, type, identifier, F)) != NULL)
 	{
 		return found;
 	}
 	
-	if ((found = find_subtree(node->r, type, identifier,  F)) != NULL)
+	if ((found = findSubtree(node->r, type, identifier,  F)) != NULL)
 	{
 		return found;
 	}
@@ -932,22 +981,22 @@ find_subtree(ASTnode *node, ASTnodeType type, char *identifier, FFIstate *F)
 		 *	7. root->r->l->r a copy of node->l
 		 */
 		/* Step 1 */
-		subtree 	= newnode(P_FIRSTSETSTMT, 	NULL /* tokenstring */, NULL /* l */, NULL /* r */, 0 /* color */, F);
+		subtree 	= newnode(P_FIRSTSETSTMT, 	NULL /* tokenstring */, NULL /* l */, NULL /* r */, kFFIcolorInvalid /* color */, F);
 		
 		/* Step 2 */
-		subtree->l	= newnode(T_TOKEN, 		NULL /* tokenstring */, NULL /* l */, NULL /* r */, 0 /* color */, F);
+		subtree->l	= newnode(T_TOKEN, 		NULL /* tokenstring */, NULL /* l */, NULL /* r */, kFFIcolorInvalid /* color */, F);
 		
 		/* Step 3 */
-		subtree->l->l	= newnode(T_IDENTIFIER, 	node->l->tokenstring, NULL /* l */, NULL /* r */, 0 /* color */, F);
+		subtree->l->l	= newnode(T_IDENTIFIER, 	node->l->tokenstring, NULL /* l */, NULL /* r */, kFFIcolorInvalid /* color */, F);
 		
 		/* Step 4 */
-		subtree->r	= newnode(P_FIRSTSET, 		NULL /* tokenstring */, NULL /* l */, NULL /* r */, 0 /* color */, F);
+		subtree->r	= newnode(P_FIRSTSET, 		NULL /* tokenstring */, NULL /* l */, NULL /* r */, kFFIcolorInvalid /* color */, F);
 		
 		/* Step 5 */
-		subtree->r->l	= newnode(X_SEQ, 		NULL /* tokenstring */, NULL /* l */, NULL /* r */, 0 /* color */, F);
+		subtree->r->l	= newnode(X_SEQ, 		NULL /* tokenstring */, NULL /* l */, NULL /* r */, kFFIcolorInvalid /* color */, F);
 		
 		/* Step 6, 7 */
-		subtree->r->l->r = copy_subtree(node->l, F);
+		subtree->r->l->r = copySubtree(node->l, F);
 		
 		/*	
 			TODO: unlike in other cases, these sub-trees are allocated just to satisfy the request, 
@@ -975,10 +1024,9 @@ find_subtree(ASTnode *node, ASTnodeType type, char *identifier, FFIstate *F)
 
 
 ASTnode *
-find_parentpointer(ASTnode *searchtree, ASTnode *matchnode, FFIstate *F)
+findParentPointer(ASTnode *searchtree, ASTnode *matchnode, FFIstate *F)
 {
 	ASTnode	*	found;
-
 
 	if (searchtree == NULL)
 	{
@@ -989,12 +1037,12 @@ find_parentpointer(ASTnode *searchtree, ASTnode *matchnode, FFIstate *F)
 	 *	TODO: We should have doubly-linked node edges to obviate need
 	 *	for this. For now, this is inefficient but passable.
 	 */
-	if ((found = find_parentpointer(searchtree->l, matchnode, F)) != NULL)
+	if ((found = findParentPointer(searchtree->l, matchnode, F)) != NULL)
 	{
 		return found;
 	}
 	
-	if ((found = find_parentpointer(searchtree->r, matchnode, F)) != NULL)
+	if ((found = findParentPointer(searchtree->r, matchnode, F)) != NULL)
 	{
 		return found;
 	}
@@ -1008,16 +1056,19 @@ find_parentpointer(ASTnode *searchtree, ASTnode *matchnode, FFIstate *F)
 }
 
 ASTnode *
-newnode(ASTnodeType type, char *tokenstring, ASTnode *l, ASTnode *r, int color, FFIstate *F)
+newnode(ASTnodeType type, char *tokenstring, ASTnode *l, ASTnode *r, FFIcolor color, FFIstate *F)
 {
+//fprintf(stderr, "newnode() called for type=[%s], tokenstring=[%s], l=[%x], r=[%x], hasloop(l)=%d, hasLoop(r)=%d\n", 
+//gASTnodeSTRINGS[type], tokenstring, l, r, hasLoops(F, l), hasLoops(F, r));
+
 	ASTnode *	newnode = calloc(1, sizeof(ASTnode));
 	if (newnode == NULL)
 	{
 		fatal(F, Emalloc);
 	}
-	
+
 	newnode->type = type;
-	
+
 	if (tokenstring != NULL)
 	{
 		newnode->tokenstring = strdup(tokenstring);
@@ -1026,38 +1077,36 @@ newnode(ASTnodeType type, char *tokenstring, ASTnode *l, ASTnode *r, int color, 
 			fatal(F, Emalloc);
 		}
 	}
-	
-	newnode->l = copy_subtree(l, F);
-	newnode->r = copy_subtree(r, F);
+
+	newnode->l = copySubtree(l, F);
+	newnode->r = copySubtree(r, F);
 	newnode->color = color;
-	
+
 	return newnode;
 }
 
 ASTnode*
-copy_subtree(ASTnode *subtree, FFIstate *F)
+copySubtree(ASTnode *subtree, FFIstate *F)
 {
 	if (subtree == NULL)
 	{
-//fprintf(stderr, "copy_subtree() called with a NULL tree!\n");
-                
+		//fprintf(stderr, "copySubtree() called with a NULL tree!\n");
 		return NULL;
 	}
-	
-		
+
 	return newnode(subtree->type, subtree->tokenstring, subtree->l, subtree->r, subtree->color, F);
 }
 
 void
-delete_subtree(ASTnode *subtree, FFIstate *F)
+deleteSubtree(ASTnode *subtree, FFIstate *F)
 {
 	if (subtree == NULL)
 	{
 		return;
 	}
 
-	delete_subtree(subtree->l, F);
-	delete_subtree(subtree->r, F);
+	deleteSubtree(subtree->l, F);
+	deleteSubtree(subtree->r, F);
 
 	if (subtree->tokenstring != NULL)
 	{
@@ -1068,7 +1117,7 @@ delete_subtree(ASTnode *subtree, FFIstate *F)
 }
 
 void
-replace_ffsubtree(ASTnode *root, ASTnode *node, FFIstate *F, ASTnodeType type)
+replaceFirstOrFollowSubtree(ASTnode *root, ASTnode *node, FFIstate *F, ASTnodeType type)
 {
 	ASTnode 	*subtree, *subtreeSeqCopy, *subtreeSeqCopyChainEnd, *parent;
 	
@@ -1076,7 +1125,7 @@ replace_ffsubtree(ASTnode *root, ASTnode *node, FFIstate *F, ASTnodeType type)
 	/*	TODO: for now, until we have doubly-linked	*/
 	/*	node pointers, search for the parent.		*/
 	/*							*/
-	parent = find_parentpointer(root, node, F);
+	parent = findParentPointer(root, node, F);
 	if (parent == NULL)
 	{
 		fprintf(stdout, "Badly formed tree: could not find parent node for root of subtree %s\n",
@@ -1084,29 +1133,29 @@ replace_ffsubtree(ASTnode *root, ASTnode *node, FFIstate *F, ASTnodeType type)
 		exit(EXIT_FAILURE);
 	}
 		
-	/*	The subtree we seek is a P_(FIRST/FOLLOW)SETSTMT whose subtree->l->l->ideintifier matches node->r->l->tokenstring	*/
-	subtree = find_subtree(root, type, node->r->l->tokenstring, F);
+	/*	The subtree we seek is a P_(FIRST/FOLLOW)SETSTMT whose subtree->l->l->identifier matches node->r->l->tokenstring	*/
+	subtree = findSubtree(root, type, node->r->l->tokenstring, F);
 	if (subtree == NULL || subtree->r == NULL)
 	{
 			fprintf(stdout, "Badly formed tree: could not find node for [%s]\nSearched tree is:\n%s\n\nReturned subtree is:\n%s\n\n",
 				node->r->l->tokenstring,
 				(!F->verbose ? "(...)" : ast_print(F, root)),
-                                (!F->verbose ? "(...)" : ast_print(F, subtree)));
+				(!F->verbose ? "(...)" : ast_print(F, subtree)));
 			exit(EXIT_FAILURE);
 	}
-		
-	//if (subtree != NULL) fprintf(stderr, "Found subtree for %s of [%s]: ", gASTnodeSTRINGS[type], node->r->l->tokenstring);
-	//if (subtree != NULL) fprintf(stdout, "%s\n", (!F->verbose ? "(...)" : ast_print(F, subtree)));
+
+if (subtree != NULL) fprintf(stderr, "Found subtree for %s of [%s]: \n", gASTnodeSTRINGS[type], node->r->l->tokenstring);
+//if (subtree != NULL) fprintf(stdout, "%s\n", (!F->verbose ? "(...)" : ast_print(F, subtree)));
 
 	/*
 	 *	The subtree->r->l is the replacement XSEQ chain we
 	 *	are interested in. It might be that subtree->r->l
-         *      is NULL, such as when the ffi description contains
-         *      a stament like "production P_X: firstset = {}". In
-         *      that case, rather than replacing this XSEQ node, we
-         *      just set the node's node->r to NULL and carry on.
-         *
-         *      Otherwise, add a copy of subset to replace node, by:
+	 *	is NULL, such as when the ffi description contains
+	 *	a statement like "production P_X: firstset = {}". In
+	 *	that case, rather than replacing this XSEQ node, we
+	 *	just set the node's node->r to NULL and carry on.
+	 *
+	 *	Otherwise, add a copy of subset to replace node, by:
 	 *
 	 *	(1) Place copy of subtree->r->l in subtreeseqcopy
 	 *
@@ -1122,22 +1171,22 @@ replace_ffsubtree(ASTnode *root, ASTnode *node, FFIstate *F, ASTnodeType type)
 	 *
 	 *	(5) Delete node
 	 *
-	 *	TODO: for now, we use find_parentpointer() to find
+	 *	TODO: for now, we use findParentPointer() to find
 	 *	the parent pointer. We should eventually migrate to
 	 *	doubly-linked node edges to obviate need for this.
 	 */
 	//fprintf(stderr, "Replacing subtree: %s\n", (!F->verbose ? "(...)" : ast_print(F, node)));
 
-        if (subtree->r->l == NULL)
-        {
-                parent->l = node->l;
-                delete_subtree(node, F);
-                
-                return;
-        }
-        
+	if (subtree->r->l == NULL)
+	{
+		parent->l = node->l;
+		deleteSubtree(node, F);
+
+		return;
+	}
+
 	/* Step 1 */
-	subtreeSeqCopy = copy_subtree(subtree->r->l, F);
+	subtreeSeqCopy = copySubtree(subtree->r->l, F);
 
 	/* Step 2 */
 	subtreeSeqCopyChainEnd = subtreeSeqCopy;
@@ -1151,7 +1200,7 @@ replace_ffsubtree(ASTnode *root, ASTnode *node, FFIstate *F, ASTnodeType type)
 	parent->l = subtreeSeqCopy;
 
 	/* Step 4 */
-	delete_subtree(node->r, F);
+	deleteSubtree(node->r, F);
 
 	/* Step 5 */
 	if (node->tokenstring != NULL)
@@ -1159,23 +1208,23 @@ replace_ffsubtree(ASTnode *root, ASTnode *node, FFIstate *F, ASTnodeType type)
 		free(node->tokenstring);
 	}
 	free(node);
-	
+
 	//fprintf(stderr, "New subtree: %s\n", (!F->verbose ? "(...)" : ast_print(F, subtreeSeqCopy)));
 }
 
 int
-has_recursive_definitions(ASTnode *node, FFIstate *F)
+hasRecursiveDefinitions(ASTnode *node, FFIstate *F)
 {
 	int	has = 0;
-	
+
 	if (node == NULL)
 	{
 		return 0;
 	}
-	
-	has |= has_recursive_definitions(node->l, F);
-	has |= has_recursive_definitions(node->r, F);
-	
+
+	has |= hasRecursiveDefinitions(node->l, F);
+	has |= hasRecursiveDefinitions(node->r, F);
+
 	if (
 		((node->type == X_SEQ) && (node->r->type == T_FIRSTSET)) ||
 		((node->type == X_SEQ) && (node->r->type == T_FOLLOWSET))
@@ -1190,16 +1239,16 @@ has_recursive_definitions(ASTnode *node, FFIstate *F)
 }
 
 void
-replace_firstandfollowsets(ASTnode *root, ASTnode *node, FFIstate *F)
+replaceFirstAndFollowSets(ASTnode *root, ASTnode *node, FFIstate *F)
 {
 	if (node == NULL)
 	{
 		return;
 	}
 
-	replace_firstandfollowsets(root, node->l, F);
-	replace_firstandfollowsets(root, node->r, F);
-	
+	replaceFirstAndFollowSets(root, node->l, F);
+	replaceFirstAndFollowSets(root, node->r, F);
+
 	/*								*/
 	/*	Replace X_SEQ nodes whose node->r are either		*/
 	/*	T_FIRSTSET or T_FOLLOWSET, with a sequence of		*/
@@ -1208,12 +1257,12 @@ replace_firstandfollowsets(ASTnode *root, ASTnode *node, FFIstate *F)
 	/*								*/
 	if ((node->type == X_SEQ) && (node->r->type == T_FIRSTSET))
 	{
-		replace_ffsubtree(root, node, F, P_FIRSTSETSTMT);
+		replaceFirstOrFollowSubtree(root, node, F, P_FIRSTSETSTMT);
 	}
 
 	if ((node->type == X_SEQ) && (node->r->type == T_FOLLOWSET))
 	{
-		replace_ffsubtree(root, node, F, P_FOLLOWSETSTMT);
+		replaceFirstOrFollowSubtree(root, node, F, P_FOLLOWSETSTMT);
 	}
 
 	return;
@@ -1264,10 +1313,10 @@ gentokenlist(FFIstate *F, ASTnode *root, char *identifier, ASTnodeType type)
 	}
 	
 	/*
-	 *	Find the subtree and walk the XSEQs. Re-purpose find_subtree() for use here,
+	 *	Find the subtree and walk the XSEQs. Re-purpose findSubtree() for use here,
 	 *	so need to get at either P_FIRSTSETSTMT or P_FOLLOWSETSTMT, then get the XSEQs.
 	 */
-	subtree = find_subtree(root, type, identifier, F);
+	subtree = findSubtree(root, type, identifier, F);
 	if (subtree == NULL)
 	{
 		fprintf(stdout, "Badly formed tree: could not find node for [%s]\nSearched tree is:\n %s\n",
@@ -1279,7 +1328,7 @@ gentokenlist(FFIstate *F, ASTnode *root, char *identifier, ASTnodeType type)
 	/*	Get the XSEQ	*/
 	subtree = subtree->r->l;
 	
-	fprintf(stdout, "                                               [%-64s]            = ", identifier);
+	fprintf(stdout, "                                               [%-48s]            = ", identifier);
 	for (i = 0; subtree != NULL; subtree = subtree->l)
 	{
 		if (subtree->r == NULL || subtree->r->tokenstring == NULL)
@@ -1291,15 +1340,15 @@ gentokenlist(FFIstate *F, ASTnode *root, char *identifier, ASTnodeType type)
 	
 		i += add2stringarray(buffer, i, subtree->r->tokenstring);
 	}
-        columnFlag = (i > 1);
-        
+	columnFlag = (i > 1);
+
 	fprintf(stdout, "{%s", (columnFlag ? "\n" : ""));
 	for (i = 0; buffer[i] != NULL; i++)
 	{
-		fprintf(stdout, "%s%s%s", (columnFlag ? "                                                                                                    " : ""), buffer[i], (columnFlag ? ",\n" : ", "));
+		fprintf(stdout, "%s%s%s", (columnFlag ? "                                                                                                                    " : ""), buffer[i], (columnFlag ? ",\n" : ", "));
 	}
 	
-	fprintf(stdout, "%s}", (columnFlag ? "                                                                                                    astNodeMax\n                                                                                               " : "astNodeMax"));
+	fprintf(stdout, "%s}", (columnFlag ? "                                                                                                                    astNodeMax\n                                                                                               " : "astNodeMax"));
 }
 
 void
@@ -1309,10 +1358,10 @@ gather_leftchild_tokenstrings(FFIstate *F, ASTnode *node, ASTnodeType type, char
 	{
 		return;
 	}
-	
+
 	gather_leftchild_tokenstrings(F, node->l, type, destination, countPointer);
 	gather_leftchild_tokenstrings(F, node->r, type, destination, countPointer);
-	
+
 	if (node->type == type)
 	{
 		if (node->l == NULL || node->l->type != T_IDENTIFIER || node->l->tokenstring == NULL)
@@ -1334,8 +1383,8 @@ gather_leftchild_tokenstrings(FFIstate *F, ASTnode *node, ASTnodeType type, char
 	//for(int i = 0; i <= *countPointer; i++) fprintf(stdout, "\t[%s]\n", destination[*countPointer]);
 	//fprintf(stdout, "<---\n");
 		
-			*countPointer += 1;	
-		}		
+			*countPointer += 1;
+		}
 	}
 //fprintf(stdout, "*countPointer %d\n", *countPointer);
 }
@@ -1390,7 +1439,7 @@ codegen(FFIstate *F, ASTnode *root)
 	{
 		fprintf(stdout, "\t%s,\n", productions[i]);
 	}
-        fprintf(stdout, "\n\tX_SEQ,\n\n\tastNodeMax\n");
+	fprintf(stdout, "\n\tX_SEQ,\n\n\tastNodeMax\n");
 	fprintf(stdout, "} ASTnodeType;\n\n");
 
 
@@ -1415,22 +1464,23 @@ codegen(FFIstate *F, ASTnode *root)
 		fprintf(stdout, "%s\n", (i == tokensCount - 1 ? "" : ","));
 	}
 	fprintf(stdout, "                                   };\n\n");
-        
-        
-        fprintf(stdout, "char	*gASTnodeSTRINGS[astNodeMax]	= {\n");
+
+
+	fprintf(stdout, "char	*gASTnodeSTRINGS[astNodeMax]	= {\n");
 	for (i = 0; i < productionsCount; i++)
 	{
-		fprintf(stdout, "                                               [%64s]            = \"%s\",\n", productions[i], productions[i]);
+		fprintf(stdout, "                                               [%48s]            = \"%s\",\n", productions[i], productions[i]);
 	}
 	for (i = 0; i < tokensCount; i++)
 	{
-		fprintf(stdout, "                                               [%64s]            = \"%s\",\n", tokens[i], tokens[i]);
+		fprintf(stdout, "                                               [%48s]            = \"%s\",\n", tokens[i], tokens[i]);
 	}
 	fprintf(stdout, "                                   };\n");
+	fflush(stdout);
 }
 
 void
-ast_colortree(FFIstate *F, ASTnode *p, int color)
+astColorTree(FFIstate *F, ASTnode *p, FFIcolor color)
 {
 	if (p == NULL)
 	{
@@ -1439,13 +1489,13 @@ ast_colortree(FFIstate *F, ASTnode *p, int color)
 
 	if (p->l == p || p->r == p)
 	{
-		error(F, "Immediate cycle in AST, seen ast_colortree()!!\n");
+		error(F, "Immediate cycle in AST, seen astColorTree()!!\n");
 		return;
 	}
 
 	p->color = color;
-	ast_colortree(F, p->l, color);
-	ast_colortree(F, p->r, color);
+	astColorTree(F, p->l, color);
+	astColorTree(F, p->r, color);
 
 	return;
 }
@@ -1472,7 +1522,6 @@ ast_printwalk(FFIstate *F, ASTnode *p, char *buf, int buflen)
 {
 	int	n0 = 0, n1 = 0, n2 = 0, n = 0;
 
-
 	//
 	//	TODO: if we run out of space in print buffer, we should
 	//	print a "..." rather than just ending like we do now.
@@ -1498,15 +1547,14 @@ ast_printwalk(FFIstate *F, ASTnode *p, char *buf, int buflen)
 	n1 = ast_printwalk(F, p->r, &buf[n0], buflen-n0);
 
 	/*	Only process Pred nodes once	*/
-	if (p->color == -1)
+	if (p->color == kFFIcolorASTprintColor)
 	{
 		n2 = dotfmt(F, &buf[n0+n1], buflen-(n0+n1), p);
-		p->color = 0;
+		p->color = kFFIcolorASTprintNoColor;
 	}
 
 	n = n0+n1+n2;
 
-	
 	return n;
 }
 
@@ -1524,7 +1572,6 @@ dotfmt(FFIstate *F, char *buf, int buflen, ASTnode *p)
 	{
 		identstring = p->tokenstring;
 	}
-			
 
 	/*										*/
 	/*	We use the pointer address of the ASTnode *p to give a unique		*/
@@ -1620,7 +1667,6 @@ dotfmt(FFIstate *F, char *buf, int buflen, ASTnode *p)
 	free(l);
 	free(r);
 
-
 	return n;
 }
 
@@ -1689,7 +1735,7 @@ ast_print(FFIstate *F, ASTnode *p)
 	/*	which nodes have been visited, in case when	*/
 	/*	the graph is not a tree.			*/
 	/*							*/
-	ast_colortree(F, p, -1);
+	astColorTree(F, p, kFFIcolorASTprintColor);
 
 
 	n += ast_printwalk(F, p, &buf[n], buflen);
@@ -1701,7 +1747,7 @@ ast_print(FFIstate *F, ASTnode *p)
 //fprintf(stderr, "n = %d\n", n);
 
 	/*	Revert predicate graph color to neutral (0).	*/
-	ast_colortree(F, p, 0);
+	astColorTree(F, p, kFFIcolorASTprintNoColor);
 
 
 	return buf;
@@ -1750,7 +1796,6 @@ error(FFIstate *F, const char *msg)
 	}
 
 	flexprint(F->Fe, F->Fm, F->Fperr, "\n%s: %s\n", Effi2codeerror, msg);
-
 
 	if (F != NULL && F->Fe != NULL && F->Fe->errstr != NULL)
 	{
