@@ -571,8 +571,3 @@ token		T_WMEM:				followset = {T_LBRAC}
 token		T_WREG:				followset = {T_ASSIGN}
 token		T_WREG:				followset = {followset(P_REGFULLTERM)}
 token		T_WREG:				followset = {followset(P_STRPARAMORCONST)}
-
-
-
-
-
