@@ -9,13 +9,6 @@ production P_ARITHEXPR:			firstset =	{
 
 production P_REGFULLTERM:		firstset = {T_REGFULL}
 
-
-
-
-
-
-
-
 production	P_ARITHEXPR:			followset = {T_TO}
 production	P_ARITHEXPR:			followset = {firstset(P_ARITH2BOOLOP)}
 production	P_ARITHEXPR:			followset = {firstset(P_LPRECARITH2ARITHOP)}
@@ -23,8 +16,3 @@ token		T_POWERSET:			followset = {followset(P_UNARYSETOP)}
 token		T_TRUE:				followset = {followset(T_FALSE), followset(T_MAYBE), followset(P_BOOLCONST)}
 token		T_WREG:				followset = {followset(P_REGFULLTERM)}
 token		T_WREG:				followset = {followset(P_STRPARAMORCONST)}
-
-
-
-
-

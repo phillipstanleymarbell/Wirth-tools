@@ -1,5 +1,5 @@
-LIBFLEXPATH     = /Volumes/doos/libflex-hg-clone
-CONFIGPATH	= /Volumes/doos/libflex-hg-clone
+LIBFLEXPATH     = ../libflex-git-clone
+CONFIGPATH	= ../libflex-git-clone
 include		$(CONFIGPATH)/config.$(OSTYPE)-$(MACHTYPE).clang
 include		config.$(OSTYPE)-$(MACHTYPE).clang
 
