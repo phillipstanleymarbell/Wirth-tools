@@ -35,10 +35,12 @@
 	POSSIBILITY OF SUCH DAMAGE.
 */
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <time.h>
 #include <sys/time.h>
 #include <getopt.h>
 #include "flextypes.h"
