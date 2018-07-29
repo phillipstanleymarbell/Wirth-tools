@@ -1,0 +1,3 @@
+[submodule "submodules/libflex"]
+	path = submodules/libflex
+	url = git@github.com:phillipstanleymarbell/libflex.git

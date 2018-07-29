@@ -1,5 +1,5 @@
-LIBFLEXPATH     = ../libflex-git-clone
-CONFIGPATH	= ../libflex-git-clone
+LIBFLEXPATH     = submodules/libflex
+CONFIGPATH	= submodules/libflex
 include		$(CONFIGPATH)/config.$(OSTYPE)-$(MACHTYPE).clang
 include		config.$(OSTYPE)-$(MACHTYPE).clang
 
@@ -10,7 +10,7 @@ CCFLAGS		= $(PLATFORM_DBGFLAGS) $(PLATFORM_CFLAGS) $(PLATFORM_DFLAGS) $(PLATFORM
 #	We pass in linker flags to explicitly request a large stack since for grammars with high nesting depth
 #	we can run out of stack space.
 #
-LDFLAGS		= $(PLATFORM_DBGFLAGS) -lm $(PLATFORM_LFLAGS) -Wl,-stack_size -Wl,0xF000000
+LDFLAGS		= $(PLATFORM_DBGFLAGS) -lm $(PLATFORM_LFLAGS) #-Wl,-stack_size -Wl,0xF000000
 
 FFI2CODE_L10N	= EN
 
