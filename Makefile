@@ -48,7 +48,7 @@ all: $(OBJS)
 
 
 version.h: Makefile ffi2code.c
-	echo 'char kFFI2CODE_VERSION[] = "0.0-alpha (build '`date '+%m-%d-%Y-%H:%M'`-`whoami`@`hostname -s`-`uname -s`-`uname -r`-`uname -m`\)\"\; > version.h
+	echo 'char kFFI2CODE_VERSION[] = "0.1-alpha-'`git rev-list --count HEAD`' ('`git rev-parse HEAD`') (build '`date '+%m-%d-%Y-%H:%M'`-`whoami`@`hostname -s`-`uname -s`-`uname -r`-`uname -m`\)\"\; > version.h
 
 
 #
