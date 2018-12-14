@@ -400,7 +400,7 @@ processFile(FFIstate *  F, char *  filename)
 
 		replaceFirstAndFollowSets(astroot, astroot, F);
 
-		if (hasLoops(F, astroot))
+		if ((astroot != NULL) && hasLoops(F, astroot))
 		{
 			flexprint(F->Fe, F->Fm, F->Fperr, "Loop in AST after pass %d...\n", passNumber);
 			flexprint(F->Fe, F->Fm, F->Fpinfo, "AST dump:\n", astPrint(F, astroot));
@@ -537,6 +537,8 @@ nexttoken(FFIstate *F)
 			removetoken(F);
 		}
 
+		free(ret);
+
 		/*	recurse		*/
 		return nexttoken(F);
 	}
@@ -546,6 +548,7 @@ nexttoken(FFIstate *F)
 	{
 		if (gTOKENSTRS[i].string != NULL && !strcmp(current->data, gTOKENSTRS[i].string))
 		{
+			free(ret);
 			return &gTOKENSTRS[i];
 		}
 	}
@@ -1289,8 +1292,7 @@ replaceFirstAndFollowSets(ASTnode *root, ASTnode *node, FFIstate *F)
 	{
 		replaceFirstOrFollowSubtree(root, node, F, P_FIRSTSETSTMT);
 	}
-
-	if ((node->type == X_SEQ) && (node->r->type == T_FOLLOWSET))
+	else if ((node->type == X_SEQ) && (node->r->type == T_FOLLOWSET))
 	{
 		replaceFirstOrFollowSubtree(root, node, F, P_FOLLOWSETSTMT);
 	}
@@ -1382,6 +1384,7 @@ gentokenlist(FFIstate *F, ASTnode *root, char *identifier, ASTnodeType type)
 	}
 
 	fprintf(stdout, "%s}", (columnFlag ? "                                                                                                                    astNodeMax\n                                                                                               " : "astNodeMax"));
+	free(buffer);
 }
 
 void
